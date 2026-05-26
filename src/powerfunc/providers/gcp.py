@@ -97,20 +97,21 @@ class GCPProvider(Provider):
 
         bootstrap = (
             f"pip install uv -q && "
-            f"uv pip install powerfunc --system -q && "
+            f"uv pip install powerfunc 'pydantic>=2' --system -q && "
             f"python -m powerfunc.providers.gcp {job_spec_path}"
         )
 
         env = [run_v2.EnvVar(name=k, value=v) for k, v in self.environment_variables.items()]
 
         resources = {"cpu": str(compute.cpu), "memory": f"{compute.memory}Mi"}
+        node_selector = None
         if compute.gpu:
             if compute.gpu not in _SUPPORTED_GPUS:
                 raise ExpectedException(
                     f"Unsupported GPU: {compute.gpu!r}. Supported: {sorted(_SUPPORTED_GPUS)}"
                 )
             resources["nvidia.com/gpu"] = "1"
-            resources["cloud.google.com/gke-accelerator"] = f"nvidia-{compute.gpu}"
+            node_selector = run_v2.NodeSelector(accelerator=f"nvidia-{compute.gpu}")
 
         job = run_v2.Job(
             template=run_v2.ExecutionTemplate(
@@ -123,7 +124,9 @@ class GCPProvider(Provider):
                             env=env,
                             resources=run_v2.ResourceRequirements(limits=resources),
                         )
-                    ]
+                    ],
+                    node_selector=node_selector,
+                    gpu_zonal_redundancy_disabled=bool(compute.gpu),
                 )
             )
         )
