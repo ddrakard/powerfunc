@@ -3,6 +3,7 @@ import contextlib
 import importlib
 import io
 import json
+import os
 import pathlib
 import random
 import subprocess
@@ -224,10 +225,19 @@ if __name__ == "__main__":
 
     with contextlib.ExitStack() as stack:
         if "codebase_path" in spec:
-            workdir = stack.enter_context(tempfile.TemporaryDirectory())
-            with zipfile.ZipFile(io.BytesIO(AnyPath(spec["codebase_path"]).read_bytes())) as zf:
-                zf.extractall(workdir)
-            sys.path.insert(0, workdir)
+            # POWERFUNC_CODEBASE_OVERLAY_DIR: extract synced files on top of an existing
+            # source tree (e.g. a monorepo with editable installs at known paths).
+            # Without it, the default isolated-temp-dir + sys.path behaviour is used.
+            overlay_dir = os.environ.get("POWERFUNC_CODEBASE_OVERLAY_DIR")
+            zf_bytes = AnyPath(spec["codebase_path"]).read_bytes()
+            if overlay_dir:
+                with zipfile.ZipFile(io.BytesIO(zf_bytes)) as zf:
+                    zf.extractall(overlay_dir)
+            else:
+                workdir = stack.enter_context(tempfile.TemporaryDirectory())
+                with zipfile.ZipFile(io.BytesIO(zf_bytes)) as zf:
+                    zf.extractall(workdir)
+                sys.path.insert(0, workdir)
 
         module_path, qualname = spec["function"].split(":", 1)
         func: Any = importlib.import_module(module_path)
