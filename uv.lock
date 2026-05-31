@@ -2898,7 +2898,7 @@ wheels = [
 
 [[package]]
 name = "powerfunc"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "cloudpathlib", extra = ["all"] },
@@ -2962,7 +2962,7 @@ requires-dist = [
     { name = "polars", marker = "extra == 'dev'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pyarrow", marker = "extra == 'dev'" },
-    { name = "pydantic" },
+    { name = "pydantic", specifier = ">=2" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "xlsxwriter", marker = "extra == 'dev'" },
