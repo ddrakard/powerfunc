@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "powerfunc"
-version = "0.1.1"
-description = "Add superpowers to your functions. Run them from the CLI, on cloud data, or on cloud compute."
+version = "0.2.0"
+description = "Make functions run however you like — CLI, pipeline, or remote compute"
 requires-python = ">=3.9"
 dependencies = [
     "pydantic>=2",
