@@ -11,7 +11,7 @@ import pytest
 from powerfunc import powerfunc
 from powerfunc.conversions import read, write
 
-DATA_DIR = pathlib.Path(__file__).parent / "data"
+DATA_DIR = pathlib.Path(__file__).parent.parent / "data"
 
 PD_DATA = pd.DataFrame({"value": [1, 2, 3]})
 PL_DATA = pl.DataFrame({"value": [1, 2, 3]})

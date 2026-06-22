@@ -1,10 +1,17 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from powerfunc.command_line import ExpectedException
-from powerfunc.compute import ComputeSpecification, Provider
+from powerfunc.compute import (
+    ComputeSpecification,
+    CpuCount,
+    DockerImageUri,
+    GpuModel,
+    MemorySize,
+    Provider,
+)
 
 try:
     import modal
@@ -50,26 +57,24 @@ try:
     class ModalCpuSmall(ComputeSpecification):
         """1 vCPU, 1GB RAM — for Modal."""
 
-        cpu: float = 1.0
-        memory: int = 1024
-        image: str = ""
+        cpu: CpuCount = 1.0
+        memory: MemorySize = 1024
+        image: DockerImageUri = ""
         provider: Provider = field(default_factory=ModalProvider)
 
     @pydantic_dataclass
     class ModalGpuA100(ComputeSpecification):
         """8 vCPU, 80GB RAM, A100 GPU — for Modal."""
 
-        cpu: float = 8.0
-        memory: int = 81920
-        image: str = "pytorch/pytorch:2.2.0-cuda12.1-cudnn8-devel"
-        gpu: Optional[str] = "a100"
+        cpu: CpuCount = 8.0
+        memory: MemorySize = 81920
+        image: DockerImageUri = "pytorch/pytorch:2.2.0-cuda12.1-cudnn8-devel"
+        gpu: GpuModel = "a100"
         provider: Provider = field(default_factory=ModalProvider)
 
-    MODAL_CPU_SMALL = ModalCpuSmall()
-    MODAL_GPU_A100 = ModalGpuA100()
 
 except ImportError as e:
     raise ExpectedException(
         "modal is not installed. "
-        "Install with: pip install powerfunc[modal] or uv add powerfunc[modal]"
+        "Install with: pip install 'powerfunc[modal]' or uv add 'powerfunc[modal]'"
     ) from e

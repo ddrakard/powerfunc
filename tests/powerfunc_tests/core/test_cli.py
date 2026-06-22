@@ -3,7 +3,7 @@ import subprocess
 import sys
 
 SCRIPT = pathlib.Path(__file__).parent / "cli_example.py"
-DATA = pathlib.Path(__file__).parent / "data" / "data.csv"
+DATA = pathlib.Path(__file__).parent.parent / "data" / "data.csv"
 
 
 def run(*args):

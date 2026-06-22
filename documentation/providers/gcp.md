@@ -1,11 +1,13 @@
-# Google Cloud Platform Cloud Run
+# Google Cloud Platform
 
-This page describes how to execute powerfunc functions remotely on [GCP Cloud Run Jobs](https://cloud.google.com/run/docs/create-jobs).
+powerfunc supports two GCP execution backends: [Cloud Run Jobs](https://cloud.google.com/run/docs/create-jobs) and [Batch](https://cloud.google.com/batch/docs). Both use the same authentication, bucket-based data transfer, and `ComputeSpecification` model.
 
 ## Contents
 
 - [Installation](#installation)
 - [Setup and configuration](#setup-and-configuration)
+- [Cloud Run](#cloud-run)
+- [Batch](#batch)
 - [Environment variables](#environment-variables)
 - [Predefined configurations](#predefined-configurations)
 - [Supported GPUs](#supported-gpus)
@@ -16,16 +18,16 @@ This page describes how to execute powerfunc functions remotely on [GCP Cloud Ru
 Make sure to install with the `gcp` option.
 
 ```sh
-pip install powerfunc[gcp]
+pip install 'powerfunc[gcp]'
 ```
 
 or
 
 ```sh
-uv add powerfunc[gcp]
+uv add 'powerfunc[gcp]'
 ```
 
-## Usage
+## Setup
 
 You need to have a Google Cloud account with a project inside it where the remote execution can happen. You must authenticate with the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) using:
 
@@ -35,14 +37,23 @@ gcloud auth application-default login
 
 powerfunc transfers data in and out of the compute job using a [Google Cloud Storage bucket](https://docs.cloud.google.com/storage/docs/buckets). Therefore, you need to have or create a bucket that powerfunc can use, and provide these details.
 
-The recommended approach is to configure the provider in `powerfunc.yaml`:
+### Command line usage
+
+When runnng from the command line, [module-style invocation](https://docs.python.org/3/using/cmdline.html#cmdoption-m) `python -m my.module` must be used instead of direct script execution `python myscript.py`.
+
+## Cloud Run
+
+Cloud Run Jobs is a serverless execution backend. It scales to zero, has fast cold starts for cached images, and supports GPUs.
+
+Configure in `powerfunc.yaml`:
 
 ```yaml
 compute:
-  class_path: powerfunc.providers.gcp.GcpCpuSmall
+  class_path: powerfunc.providers.gcp_cloud_run.GcpCloudRunCpuSmall
   init_args:
+    timeout: 600
     provider:
-      class_path: powerfunc.providers.gcp.GCPProvider
+      class_path: powerfunc.providers.gcp_cloud_run.GCPCloudRunProvider
       init_args:
         project: my-gcp-project
         region: us-central1
@@ -52,56 +63,95 @@ compute:
 Or directly in Python:
 
 ```python
-from powerfunc.providers.gcp import GCPProvider, GcpCpuSmall
+from powerfunc.providers.gcp_cloud_run import GCPCloudRunProvider, GcpCloudRunCpuSmall
 
-provider = GCPProvider(
+provider = GCPCloudRunProvider(
     project="my-gcp-project",
     region="us-central1",
     temporary_bucket_path="gs://my-bucket/",
 )
-compute = GcpCpuSmall(provider=provider)
+compute = GcpCloudRunCpuSmall(timeout=600, provider=provider)
 
 result = sum_col("gs://bucket/data.csv", compute=compute)
 ```
 
-### Command line usage
-
-When runnng from the command line, [module-style invocation](https://docs.python.org/3/using/cmdline.html#cmdoption-m) `python -m my.module` must be used instead of direct script execution `python myscript.py`.
-
-## Cold start time
-
 Cloud Run Jobs can require some time to start, particularly for a docker image that has not been used recently.
 
-## Environment variables
+## Batch
 
-Pass environment variables to the remote container:
+Batch provisions Compute Engine VMs. It supports GPUs, higher resource limits than Cloud Run, spot (preemptible) VMs, and explicit machine type selection.
+
+Configure in `powerfunc.yaml`:
 
 ```yaml
 compute:
-  class_path: powerfunc.providers.gcp.GcpCpuSmall
+  class_path: powerfunc.providers.gcp_batch.GcpBatchCpuSmall
   init_args:
+    timeout: 600
     provider:
-      class_path: powerfunc.providers.gcp.GCPProvider
+      class_path: powerfunc.providers.gcp_batch.GCPBatchProvider
       init_args:
-        project: my-project
+        project: my-gcp-project
         region: us-central1
-        temporary_bucket_path: gs://my-bucket/tmp
-        environment_variables:
-          MY_API_KEY: secret123
+        temporary_bucket_path: gs://my-bucket/powerfunc-temp
+```
+
+Or directly in Python:
+
+```python
+from powerfunc.providers.gcp_batch import GCPBatchProvider, GcpBatchCpuSmall
+
+provider = GCPBatchProvider(
+    project="my-gcp-project",
+    region="us-central1",
+    temporary_bucket_path="gs://my-bucket/",
+    spot=True,  # optional: use spot (preemptible) VMs
+    machine_type="n1-standard-4",  # optional: Batch auto-selects if omitted
+)
+compute = GcpBatchCpuSmall(timeout=600, provider=provider)
+
+result = sum_col("gs://bucket/data.csv", compute=compute)
+```
+
+`machine_type` is optional — Batch selects a machine from the requested CPU/memory when it
+is not given. For GPUs, a compatible `machine_type` is usually required.
+
+## Environment variables
+
+Both Cloud Run and Batch support passing environment variables to the remote container via the `environment_variables` provider option:
+
+```python
+provider = GCPCloudRunProvider(
+    project="my-project",
+    region="us-central1",
+    temporary_bucket_path="gs://my-bucket/tmp",
+    environment_variables={"MY_API_KEY": "secret123"},
+)
+```
+
+Or in `powerfunc.yaml`:
+
+```yaml
+provider:
+  init_args:
+    environment_variables:
+      MY_API_KEY: secret123
 ```
 
 ## Supported GPUs
 
-`t4`, `a100`, `l4`, `v100`
+Both Cloud Run and Batch support: `t4`, `a100`, `l4`, `v100`.
 
 ## Predefined configurations
 
-| Class | CPU | Memory | Image | GPU |
-|---|---|---|---|---|
-| `GcpCpuSmall` | 1 vCPU | 2GB | `python:3.12-slim` | — |
-| `GcpGpu` | 4 vCPU | 16GB | `gcr.io/deeplearning-platform-release/base-cu121` | L4 |
+| Class | Provider | CPU | Memory | Image | GPU |
+|---|---|---|---|---|---|
+| `GcpCloudRunCpuSmall` | Cloud Run | 1 vCPU | 2GB | `python:3.12-slim` | — |
+| `GcpCloudRunGpu` | Cloud Run | 4 vCPU | 16GB | `nvidia/cuda:12.1.0-base-ubuntu22.04` | L4 |
+| `GcpBatchCpuSmall` | Batch | 1 vCPU | 2GB | `python:3.12-slim` | — |
+| `GcpBatchGpu` | Batch | 4 vCPU | 16GB | `nvidia/cuda:12.1.0-base-ubuntu22.04` | L4 |
 
-Convenience instances `powerfunc.providers.gcp.GCP_CPU_SMALL` and `powerfunc.providers.gcp.GCP_GPU` are available for direct use.
+All presets require a `timeout` argument (in seconds), e.g. `GcpCloudRunCpuSmall(timeout=600)` or `GcpBatchCpuSmall(timeout=600)`.
 
 ## Known limitations
 

@@ -1,6 +1,7 @@
 import functools
 import inspect
 import pathlib
+import sys
 from contextlib import ExitStack
 from typing import Optional, Union
 
@@ -99,6 +100,15 @@ def powerfunc(function, *, cli=True):
         return result
 
     wrapper.__signature__ = modified_signature
+
+    def snakemake():
+        """Run this function bound to the surrounding Snakemake rule."""
+        from powerfunc.integrations import snakemake as snakemake_integration
+
+        frame = sys._getframe(1)
+        return snakemake_integration.run(wrapper, frame)
+
+    wrapper.snakemake = snakemake
 
     if cli and function.__module__ == "__main__":
         command_line.cli_functions.append((wrapper, modified_signature))

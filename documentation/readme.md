@@ -10,6 +10,7 @@
 - [Cloud providers and remote execution](#cloud-providers-and-remote-execution)
 - [Configuration](#configuration)
 - [Supported formats](#supported-formats)
+- [Integrations](#integrations)
 - [Known limitations](#known-limitations)
 - [Advanced usage](#advanced-usage)
 
@@ -24,13 +25,13 @@ pip install powerfunc
 For GCP remote execution:
 
 ```sh
-pip install powerfunc[gcp]
+pip install 'powerfunc[gcp]'
 ```
 
 For Modal remote execution:
 
 ```sh
-pip install powerfunc[modal]
+pip install 'powerfunc[modal]'
 ```
 
 Or using [uv](https://github.com/astral-sh/uv):
@@ -40,11 +41,11 @@ uv add powerfunc
 ```
 
 ```sh
-uv add powerfunc[gcp]
+uv add 'powerfunc[gcp]'
 ```
 
 ```sh
-uv add powerfunc[modal]
+uv add 'powerfunc[modal]'
 ```
 
 ## Basic usage
@@ -151,10 +152,11 @@ For example:
 
 ```yaml
 compute:
-  class_path: powerfunc.providers.gcp.GcpCpuSmall
+  class_path: powerfunc.providers.gcp_cloud_run.GcpCloudRunCpuSmall
   init_args:
+    timeout: 600
     provider:
-      class_path: powerfunc.providers.gcp.GCPProvider
+      class_path: powerfunc.providers.gcp_cloud_run.GCPCloudRunProvider
       init_args:
         project: my-gcp-project
         region: us-central1
@@ -191,6 +193,12 @@ python my_script.py sum_col data.csv --config my_config.yaml
 | `pa.dataset.Dataset` | `.csv`, `.parquet`, `.arrow`, `.feather` |
 | `dask.dataframe.DataFrame` | `.csv`, `.parquet` |
 | `csv.reader` | `.csv` |
+
+## Integrations
+
+powerfunc functions can be driven by external workflow tools:
+
+- [Snakemake](integrations/snakemake.md) — bind a rule's inputs, params and outputs with `function.snakemake()`.
 
 ## Known limitations
 

@@ -12,10 +12,10 @@ Subclass `ComputeSpecification` to define reusable compute configurations:
 ```python
 from dataclasses import field
 from pydantic.dataclasses import dataclass
-from powerfunc.compute import ComputeSpecification, Provider
-from powerfunc.providers.gcp import GCPProvider
+from powerfunc.compute import ComputeSpecification, CpuCount, DockerImageUri, GpuModel, MemorySize, Provider
+from powerfunc.providers.gcp_cloud_run import GCPCloudRunProvider
 
-provider = GCPProvider(
+provider = GCPCloudRunProvider(
     project="my-project",
     region="us-central1",
     temporary_bucket_path="gs://my-bucket/tmp",
@@ -23,10 +23,10 @@ provider = GCPProvider(
 
 @dataclass
 class MyGpuSpec(ComputeSpecification):
-    cpu: float = 8.0
-    memory: int = 32768
-    image: str = "gcr.io/deeplearning-platform-release/base-cu121"
-    gpu: str = "a100"
+    cpu: CpuCount = 8.0
+    memory: MemorySize = 32768
+    image: DockerImageUri = "nvidia/cuda:12.1.0-base-ubuntu22.04"
+    gpu: GpuModel = "a100"
     provider: Provider = field(default_factory=lambda: provider)
 
 MY_GPU = MyGpuSpec()

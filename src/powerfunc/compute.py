@@ -1,11 +1,17 @@
 import dataclasses
-from typing import Annotated, Any, Callable, Optional
+from typing import Annotated, Any, Callable, Optional, TypeAlias
 
 from pydantic import Field, GetCoreSchemaHandler
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 from pydantic_core import core_schema
 
 from powerfunc.command_line import ExpectedException
+
+Timeout: TypeAlias = Annotated[float, Field(gt=0, description="Maximum job duration in seconds")]
+CpuCount: TypeAlias = Annotated[float, Field(gt=0, description="Number of vCPUs")]
+MemorySize: TypeAlias = Annotated[int, Field(gt=0, description="RAM in MB")]
+DockerImageUri: TypeAlias = Annotated[str, Field(description="Container image URI")]
+GpuModel: TypeAlias = Annotated[Optional[str], Field(description="GPU model name")]
 
 
 class Provider:
@@ -34,20 +40,21 @@ class UndefinedProvider(Provider):
 class ComputeSpecification:
     """Specifies compute resources for remote execution."""
 
-    cpu: Annotated[float, Field(gt=0, description="Number of vCPUs")]
-    memory: Annotated[int, Field(gt=0, description="RAM in MB")]
-    image: Annotated[str, Field(description="Container image URI")] = ""
+    timeout: Timeout
+    cpu: CpuCount
+    memory: MemorySize
+    image: DockerImageUri = ""
     provider: Provider = dataclasses.field(default_factory=UndefinedProvider)
-    gpu: Annotated[Optional[str], Field(description="GPU model name")] = None
+    gpu: GpuModel = None
 
 
 @pydantic_dataclass
 class CpuSmall(ComputeSpecification):
     """1 vCPU, 2GB RAM, Python 3.12 slim."""
 
-    cpu: float = 1.0
-    memory: int = 2048
-    image: str = "python:3.12-slim"
+    cpu: CpuCount = 1.0
+    memory: MemorySize = 2048
+    image: DockerImageUri = "python:3.12-slim"
 
 
 user_identifier: Optional[str] = None

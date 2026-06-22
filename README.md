@@ -21,13 +21,13 @@ pip install powerfunc
 With [Google Cloud](https://cloud.google.com) remote execution:
 
 ```bash
-pip install powerfunc[gcp]
+pip install 'powerfunc[gcp]'
 ```
 
 With [Modal](https://modal.com/) remote execution:
 
 ```bash
-pip install powerfunc[modal]
+pip install 'powerfunc[modal]'
 ```
 
 ## Example usage

@@ -4,7 +4,7 @@ import pandas as pd
 import pyarrow.feather as pa_feather
 import pyarrow.ipc as pa_ipc
 
-DATA_DIR = pathlib.Path(__file__).parent / "data"
+DATA_DIR = pathlib.Path(__file__).parent
 
 DATA = pd.DataFrame({"value": [1, 2, 3]})
 
