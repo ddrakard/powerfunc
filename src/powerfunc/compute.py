@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Annotated, Any, Callable, Optional, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, Optional, TypeAlias
 
 from pydantic import Field, GetCoreSchemaHandler
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -13,6 +13,9 @@ MemorySize: TypeAlias = Annotated[int, Field(gt=0, description="RAM in MB")]
 DockerImageUri: TypeAlias = Annotated[str, Field(description="Container image URI")]
 GpuModel: TypeAlias = Annotated[Optional[str], Field(description="GPU model name")]
 
+if TYPE_CHECKING:
+    from powerfunc.decorator import PowerFunc
+
 
 class Provider:
     """Base compute provider. Subclass and implement call()."""
@@ -23,7 +26,14 @@ class Provider:
     ) -> core_schema.CoreSchema:
         return core_schema.is_instance_schema(cls)
 
-    def call(self, function: Callable, arguments: dict, spec: "ComputeSpecification") -> Any:
+    def call(self, function: "PowerFunc", arguments: dict, spec: "ComputeSpecification") -> Any:
+        """Run ``function._run_without_parsing(**arguments)`` on the compute, returning its result.
+
+        ``function`` is the powerfunc function itself, picklable by its name.
+        ``arguments`` have already been parsed and merged with the configuration
+        files, so the compute does neither; there, ``_run_without_parsing`` opens
+        the files given for parameters and writes the result to ``output_path``.
+        """
         raise NotImplementedError
 
 

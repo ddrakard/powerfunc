@@ -1,20 +1,33 @@
-"""Plain helper functions executed remotely by the GCP remote-compute tests.
+"""Powerfunc functions run remotely by the live compute tests (Cloud Run, Batch, Modal).
 
-Kept free of test-only imports (e.g. pytest) so the remote container
-can import this module after installing only powerfunc.
+Kept free of test-only imports (e.g. pytest) so the remote container can import
+this module after installing only powerfunc.
 """
 
+import csv
 import subprocess
 
+from powerfunc import powerfunc
 
+
+@powerfunc
 def remote_add(a: int, b: int) -> int:
     return a + b
 
 
+@powerfunc
 def remote_concat(prefix: str, suffix: str) -> str:
     return prefix + suffix
 
 
+@powerfunc
+def csv_sum(reader: csv.reader) -> int:
+    """Sum the single column of a CSV, given as a path opened where this runs."""
+    next(reader)
+    return sum(int(row[0]) for row in reader)
+
+
+@powerfunc
 def gpu_name() -> str:
     """Return the name of the GPU visible inside the remote container.
 

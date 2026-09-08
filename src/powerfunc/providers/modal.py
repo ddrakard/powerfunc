@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
@@ -12,6 +12,7 @@ from powerfunc.compute import (
     MemorySize,
     Provider,
 )
+from powerfunc.decorator import PowerFunc
 
 try:
     import modal
@@ -22,36 +23,38 @@ try:
 
         pip_packages: tuple[str, ...] = ()
 
-        def call(self, function: Callable, arguments: dict, compute: ComputeSpecification) -> Any:
+        def image(self, compute: ComputeSpecification) -> modal.Image:
+            """The image the function runs in: ``compute.image`` or Debian slim, with
+            ``pip_packages`` installed. Override to build one another way, e.g. from a
+            conda environment, or with the local codebase added."""
             image = modal.Image.debian_slim()
             if compute.image:
                 image = modal.Image.from_registry(compute.image)
             if self.pip_packages:
                 image = image.pip_install(*self.pip_packages)
+            return image
+
+        def secrets(self) -> list[modal.Secret]:
+            """Modal secrets to expose to the function as environment variables."""
+            return []
+
+        def call(self, function: PowerFunc, arguments: dict, compute: ComputeSpecification) -> Any:
             app = modal.App(name=f"powerfunc-{function.__name__}")
 
             @app.function(
-                image=image,
+                image=self.image(compute),
                 cpu=compute.cpu,
                 memory=compute.memory,
                 gpu=compute.gpu,
+                timeout=int(compute.timeout),
+                secrets=self.secrets(),
                 serialized=True,
             )
-            def runner(fn: Callable, args: dict) -> Any:
-                return fn(**args)
-
-            output_path = arguments.pop("output_path", None)
+            def runner(fn: PowerFunc, args: dict) -> Any:
+                return fn._run_without_parsing(**args)
 
             with app.run():
-                result = runner.remote(function, arguments)
-
-            if output_path is not None:
-                from powerfunc.conversions import write
-
-                write(result, output_path)
-                return output_path
-
-            return result
+                return runner.remote(function, arguments)
 
     @pydantic_dataclass
     class ModalCpuSmall(ComputeSpecification):

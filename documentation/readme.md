@@ -183,6 +183,13 @@ When using the CLI, pass a config file with `--config`:
 python my_script.py sum_col data.csv --config my_config.yaml
 ```
 
+The command line always reads the configuration files. A call from Python reads none unless asked, with `config`, the same option as `--config`: a path to a file, or `True` for the default files.
+
+```python
+sum_col("data.csv", config=True)
+sum_col("data.csv", config="my_config.yaml")
+```
+
 ## Supported formats
 
 | Type | Formats |

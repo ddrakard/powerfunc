@@ -1,5 +1,6 @@
 import inspect
 import sys
+from collections.abc import Callable
 
 from jsonargparse import CLI
 
@@ -10,8 +11,8 @@ class ExpectedException(Exception):
     """Raised for known user errors that should display just the message, not a traceback."""
 
 
-cli_functions: list[tuple] = []
-_cli_active = False
+# Each function's parsed-arguments entry, by the function's name: the command's.
+cli_functions: dict[str, Callable] = {}
 
 
 def enable_cli():
@@ -20,17 +21,15 @@ def enable_cli():
         frame = inspect.currentframe()
         if frame is None or frame.f_back is None:
             raise ExpectedException("Frame inspection not supported by this Python implementation.")
-        caller_module = inspect.getmodule(frame.f_back)
-        if caller_module is None or caller_module.__name__ != "__main__":
+        # By the frame's globals, not inspect.getmodule: under ``python -m`` the same
+        # file is often imported by its package name too, and getmodule finds that one.
+        if frame.f_back.f_globals.get("__name__") != "__main__":
             return
         if not cli_functions:
             raise ExpectedException("No @powerfunc functions registered for CLI.")
 
-        global _cli_active
-        wrappers = [wrapper for wrapper, _ in cli_functions]
-        _cli_active = True
         result = CLI(
-            wrappers[0] if len(wrappers) == 1 else wrappers,
+            next(iter(cli_functions.values())) if len(cli_functions) == 1 else cli_functions,
             default_config_files=configuration_paths,
         )
         if result is not None:

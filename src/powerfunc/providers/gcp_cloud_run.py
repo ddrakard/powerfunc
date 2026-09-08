@@ -1,6 +1,7 @@
 import collections.abc
 import contextlib
 import importlib
+import importlib.metadata
 import inspect
 import io
 import json
@@ -14,7 +15,7 @@ import time
 import warnings
 import zipfile
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 import cloudpickle as pickle
 from cloudpathlib import AnyPath
@@ -31,6 +32,7 @@ from powerfunc.compute import (
     Provider,
     user_identifier,
 )
+from powerfunc.decorator import PowerFunc
 
 _SUPPORTED_GPUS = {"t4", "a100", "l4", "v100"}
 _MAX_JOB_NAME_LENGTH = 63  # GCP resource name limit (Cloud Run and Batch)
@@ -67,8 +69,10 @@ def _bootstrap_command(job_spec_path: "AnyPath", error_gcs_path: str = "") -> st
         "&& curl -LsSf " + _uv_url + " | sh; }; }"
     )
     # uv run handles everything: ephemeral env, Python download, install, execute.
+    # The remote runs the same powerfunc version as the caller.
+    powerfunc_version = importlib.metadata.version("powerfunc")
     run_cmd = (
-        f'uv run --with powerfunc --with "pydantic>=2" '
+        f'uv run --with "powerfunc=={powerfunc_version}" --with "pydantic>=2" '
         f"python -m powerfunc.providers.gcp_cloud_run {job_spec_path}"
     )
     main_cmd = get_uv + " && " + run_cmd
@@ -250,7 +254,7 @@ class GCPCloudRunProvider(Provider):
             pass
 
     @staticmethod
-    def _extra_sys_paths(function: Callable, repo_root: Optional[pathlib.Path]) -> list[str]:
+    def _extra_sys_paths(function: PowerFunc, repo_root: Optional[pathlib.Path]) -> list[str]:
         """Relative directories that must be added to sys.path on the remote.
 
         Compares the function's source file to its module name to discover
@@ -260,7 +264,7 @@ class GCPCloudRunProvider(Provider):
         if repo_root is None:
             return []
         try:
-            src = pathlib.Path(inspect.getfile(function)).resolve()
+            src = pathlib.Path(inspect.getfile(inspect.unwrap(function))).resolve()
             rel = src.relative_to(repo_root)
         except (TypeError, ValueError):
             return []
@@ -275,7 +279,7 @@ class GCPCloudRunProvider(Provider):
                 return [prefix]
         return []
 
-    def call(self, function: Callable, arguments: dict, compute: ComputeSpecification) -> Any:
+    def call(self, function: PowerFunc, arguments: dict, compute: ComputeSpecification) -> Any:
         if function.__module__ == "__main__":
             spec = getattr(__main__, "__spec__", None)
             if spec is None:
@@ -378,7 +382,7 @@ if __name__ == "__main__":
             func: Any = importlib.import_module(module_path)
             for part in qualname.split("."):
                 func = getattr(func, part)
-            result = func(**kwargs)
+            result = func._run_without_parsing(**kwargs)
 
         AnyPath(spec["output_path"]).write_bytes(pickle.dumps(result))
     except BaseException as exc:

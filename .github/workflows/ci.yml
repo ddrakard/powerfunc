@@ -58,6 +58,8 @@ jobs:
           enable-cache: true
       - name: Run Modal tests
         env:
+          GOOGLE_CLOUD_API_KEY: ${{ secrets.GOOGLE_CLOUD_API_KEY }}
+          GCP_BUCKET: gs://powerfunc-temporary-348293
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: uvx --with tox-uv tox run -e modal
