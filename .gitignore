@@ -16,3 +16,6 @@ venv/
 
 # OS
 .DS_Store
+
+# Tests
+.powerfunc_test_secrets/

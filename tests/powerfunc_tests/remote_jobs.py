@@ -5,6 +5,7 @@ this module after installing only powerfunc.
 """
 
 import csv
+import pathlib
 import subprocess
 
 from powerfunc import powerfunc
@@ -25,6 +26,13 @@ def csv_sum(reader: csv.reader) -> int:
     """Sum the single column of a CSV, given as a path opened where this runs."""
     next(reader)
     return sum(int(row[0]) for row in reader)
+
+
+@powerfunc
+def codebase_file_text(relative_path: str) -> str:
+    """The text of a file at ``relative_path`` under the root of the codebase this module is
+    in, where this runs."""
+    return (pathlib.Path(__file__).parents[2] / relative_path).read_text()
 
 
 @powerfunc

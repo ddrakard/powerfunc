@@ -7,10 +7,9 @@ import sys
 
 import pandas as pd
 import pytest
+import snakemake  # noqa: F401
 
 from powerfunc import powerfunc
-
-pytest.importorskip("snakemake")
 
 SNAKEMAKE_DIR = pathlib.Path(__file__).parent
 DATA_DIR = SNAKEMAKE_DIR.parent / "data"

@@ -4,6 +4,9 @@ try:
     from powerfunc.conversions import as_context, register_converters
 
     _NATIVE_PROTOCOLS = {"gs", "s3", "az", "https"}
+    # read_parquet hands cloud URIs to pyarrow's own filesystems, which block
+    # looking for credentials on public buckets, so only https is native.
+    _PARQUET_NATIVE_PROTOCOLS = {"https"}
 
     register_converters(
         pd.DataFrame,
@@ -23,7 +26,7 @@ try:
         ".parquet",
         reader=as_context(pd.read_parquet),
         writer=lambda df, p: df.to_parquet(p),
-        native_protocols=_NATIVE_PROTOCOLS,
+        native_protocols=_PARQUET_NATIVE_PROTOCOLS,
     )
     register_converters(
         pd.DataFrame,

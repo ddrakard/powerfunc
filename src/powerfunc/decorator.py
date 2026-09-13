@@ -6,8 +6,8 @@ from collections.abc import Callable
 from contextlib import ExitStack
 from typing import Any, Optional, Protocol, TypeVar, Union, overload
 
-from cloudpathlib import CloudPath
 from jsonargparse import ArgumentParser
+from upath import UPath
 
 import powerfunc.command_line as command_line
 from powerfunc.command_line import ExpectedException
@@ -113,10 +113,10 @@ def powerfunc(function=None, *, cli=True):
     modified_signature = signature.replace(
         parameters=[
             param.replace(
-                # str must precede pathlib.Path and CloudPath: jsonargparse resolves Union
+                # str must precede pathlib.Path and UPath: jsonargparse resolves Union
                 # subtypes in order and pathlib.Path accepts any string without error, so it
                 # would win and mangle "gs://bucket/file" into PosixPath("gs:/bucket/file").
-                annotation=Union[param.annotation, str, pathlib.Path, CloudPath]
+                annotation=Union[param.annotation, str, pathlib.Path, UPath]
                 if is_readable(param.annotation)
                 else param.annotation
             )

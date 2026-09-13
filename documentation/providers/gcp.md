@@ -8,6 +8,7 @@ powerfunc supports two GCP execution backends: [Cloud Run Jobs](https://cloud.go
 - [Setup and configuration](#setup-and-configuration)
 - [Cloud Run](#cloud-run)
 - [Batch](#batch)
+- [The remote environment](#the-remote-environment)
 - [Environment variables](#environment-variables)
 - [Predefined configurations](#predefined-configurations)
 - [Supported GPUs](#supported-gpus)
@@ -116,6 +117,32 @@ result = sum_col("gs://bucket/data.csv", compute=compute)
 `machine_type` is optional — Batch selects a machine from the requested CPU/memory when it
 is not given. For GPUs, a compatible `machine_type` is usually required.
 
+## The remote environment
+
+A job runs in three stages inside the container image given by `image`:
+
+1. A bootstrap that needs nothing from the image: it obtains [uv](https://docs.astral.sh/uv/) and uses it to start powerfunc's setup stage (`python -m powerfunc.providers.internal.generic_setup_entrypoint`).
+2. The setup stage unpacks your codebase (the git-tracked files of your repository) into the container's working directory (the image's `WORKDIR`, over any files already there — so an image that already contains your project and its environment gets just your current changes laid on top) and runs the provider's `setup_command`, a shell command, there.
+3. The function is run with `python -m powerfunc.providers.internal.generic_execute_entrypoint` using the `python` found on `PATH` after the setup command.
+
+By default (`setup_command` empty, as in the predefined configurations) the image must already provide `python` with powerfunc and your dependencies installed; otherwise `setup_command` has to produce it. Ready-made commands live in `powerfunc.compute`: `UV_PROJECT_SETUP` (`uv sync --locked && . .venv/bin/activate`) treats the codebase as a [uv project](https://docs.astral.sh/uv/guides/projects/); `PIXI_PROJECT_SETUP` installs [pixi](https://pixi.sh), runs `pixi install --locked` and activates the environment; `PIP_PYPROJECT_SETUP` and `PIP_REQUIREMENTS_TXT_SETUP` make a `.venv` with the image's Python and `pip install` the codebase's `pyproject.toml` or `requirements.txt` into it. Any environment manager works the same way as long as it leaves `python` on `PATH`:
+
+```yaml
+compute:
+  class_path: powerfunc.providers.gcp_cloud_run.GcpCloudRunCpuSmall
+  init_args:
+    timeout: 600
+    provider:
+      class_path: powerfunc.providers.gcp_cloud_run.GCPCloudRunProvider
+      init_args:
+        project: my-project
+        region: us-central1
+        temporary_bucket_path: gs://my-bucket/powerfunc-tmp
+        setup_command: "python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt"
+```
+
+Leave `setup_command` empty when the image already has everything installed.
+
 ## Environment variables
 
 Both Cloud Run and Batch support passing environment variables to the remote container via the `environment_variables` provider option:
@@ -138,6 +165,12 @@ provider:
       MY_API_KEY: secret123
 ```
 
+Note that these are part of the job definition, so visible to anyone who can view the job in the project while it exists. Whole directories of credentials or other files go by `secret_directories=["config/"]`, as described in the [readme](../readme.md#cloud-providers-and-remote-execution): only the encrypted archive is uploaded to the bucket, and only the decryption key is in the job's environment.
+
+## Shared buckets
+
+Set the provider's `user_identifier` (e.g. `user_identifier="alice"`) to prefix the job artifacts in `temporary_bucket_path` with it, so you can tell whose jobs are whose.
+
 ## Supported GPUs
 
 Both Cloud Run and Batch support: `t4`, `a100`, `l4`, `v100`.
@@ -151,7 +184,7 @@ Both Cloud Run and Batch support: `t4`, `a100`, `l4`, `v100`.
 | `GcpBatchCpuSmall` | Batch | 1 vCPU | 2GB | `python:3.12-slim` | — |
 | `GcpBatchGpu` | Batch | 4 vCPU | 16GB | `nvidia/cuda:12.1.0-base-ubuntu22.04` | L4 |
 
-All presets require a `timeout` argument (in seconds), e.g. `GcpCloudRunCpuSmall(timeout=600)` or `GcpBatchCpuSmall(timeout=600)`.
+All presets expect the image to provide `python` with powerfunc and your dependencies, unless a `setup_command` is given (see [the remote environment](#the-remote-environment)), and require a `timeout` argument (in seconds), e.g. `GcpCloudRunCpuSmall(timeout=600)` or `GcpBatchCpuSmall(timeout=600)`.
 
 ## Known limitations
 

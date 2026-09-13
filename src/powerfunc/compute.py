@@ -11,7 +11,30 @@ Timeout: TypeAlias = Annotated[float, Field(gt=0, description="Maximum job durat
 CpuCount: TypeAlias = Annotated[float, Field(gt=0, description="Number of vCPUs")]
 MemorySize: TypeAlias = Annotated[int, Field(gt=0, description="RAM in MB")]
 DockerImageUri: TypeAlias = Annotated[str, Field(description="Container image URI")]
-GpuModel: TypeAlias = Annotated[Optional[str], Field(description="GPU model name")]
+GpuModel: TypeAlias = Annotated[
+    Optional[str], Field(description="GPU model name, as the provider names it (e.g. 'l4', 'a100')")
+]
+
+UV_PROJECT_SETUP = "uv sync --locked && . .venv/bin/activate"
+"""Setup command for a codebase that is a uv project."""
+
+_PIXI_URL = "https://pixi.sh/install.sh"
+PIXI_PROJECT_SETUP = (
+    'export PATH="$HOME/.pixi/bin:$PATH"; { command -v pixi >/dev/null 2>&1 || '
+    "{ command -v curl >/dev/null 2>&1 && curl -fsSL "
+    + _PIXI_URL
+    + " || wget -qO- "
+    + _PIXI_URL
+    + "; }"
+    ' | PIXI_HOME="$HOME/.pixi" sh; } && pixi install --locked && eval "$(pixi shell-hook)"'
+)
+"""Setup command for a codebase that is a pixi project."""
+
+_PIP_VENV = "python -m venv .venv && . .venv/bin/activate"
+PIP_PYPROJECT_SETUP = _PIP_VENV + " && pip install -q ."
+"""Setup command for a codebase that is a pip-installable project (``pyproject.toml``)."""
+PIP_REQUIREMENTS_TXT_SETUP = _PIP_VENV + " && pip install -q -r requirements.txt"
+"""Setup command for a codebase with a pip ``requirements.txt``."""
 
 if TYPE_CHECKING:
     from powerfunc.decorator import PowerFunc
@@ -26,10 +49,10 @@ class Provider:
     ) -> core_schema.CoreSchema:
         return core_schema.is_instance_schema(cls)
 
-    def call(self, function: "PowerFunc", arguments: dict, spec: "ComputeSpecification") -> Any:
+    def call(self, function: "PowerFunc", arguments: dict, compute: "ComputeSpecification") -> Any:
         """Run ``function._run_without_parsing(**arguments)`` on the compute, returning its result.
 
-        ``function`` is the powerfunc function itself, picklable by its name.
+        ``function`` is the powerfunc function itself, named in the job by module and qualname.
         ``arguments`` have already been parsed and merged with the configuration
         files, so the compute does neither; there, ``_run_without_parsing`` opens
         the files given for parameters and writes the result to ``output_path``.
@@ -40,9 +63,9 @@ class Provider:
 class UndefinedProvider(Provider):
     """Sentinel — raises ExpectedException when called if no provider has been configured."""
 
-    def call(self, function, arguments, spec):
+    def call(self, function, arguments, compute):
         raise ExpectedException(
-            "No provider configured. Set compute.provider in configuration/powerfunc.yaml"
+            "No provider configured. Set compute.provider in powerfunc.yaml or pass compute="
         )
 
 
@@ -65,8 +88,3 @@ class CpuSmall(ComputeSpecification):
     cpu: CpuCount = 1.0
     memory: MemorySize = 2048
     image: DockerImageUri = "python:3.12-slim"
-
-
-user_identifier: Optional[str] = None
-"""Optional prefix added to remote artifact names, useful for identifying your jobs
-in a shared storage bucket."""

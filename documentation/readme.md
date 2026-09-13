@@ -142,6 +142,8 @@ Each compute provider has its own setup process. See the individual pages for pr
 - [GCP](providers/gcp.md)
 - [Modal](providers/modal.md)
 
+The codebase — the git repository holding your function — is sent along with the job so the function can be imported there; files git ignores are not. To send credentials or other ignored files too, name their directories (relative to the repository root) in the provider's `secret_directories`, e.g. `ModalProvider(secret_directories=["config/"])`: they are left out of the codebase upload (even if git tracks them), zipped and encrypted with a key made for that call, the key reaching the container only as an environment variable (never stored with the job's other artifacts or in an image), and are decrypted into the codebase at the same paths before the function runs.
+
 The [configuration](#configuration) section is useful for working with compute providers, including configuring a default provider.
 
 ## Configuration

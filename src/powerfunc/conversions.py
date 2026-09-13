@@ -1,8 +1,11 @@
-import os
 import pathlib
-from contextlib import contextmanager, nullcontext
+import tempfile
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager, nullcontext
 
-from cloudpathlib import AnyPath, CloudPath
+from upath import UPath
+
+_LOCAL_PROTOCOLS = frozenset({"", "file", "local"})
 
 # (type_, extension) -> {"reader": ..., "writer": ..., "native_protocols": ...}
 _registry: dict[tuple, dict] = {}
@@ -40,33 +43,43 @@ def as_context(function):
     return wrapper
 
 
-def read(value, type_):
+Reader = Callable[[str | pathlib.Path], AbstractContextManager[object]]
+
+
+def read(value: object, type_: type) -> AbstractContextManager[object]:
     """Convert a path or URI to the target type, returning a context manager.
 
     If no reader is registered for the type and file extension, the value is
     returned unchanged. Cloud URIs are streamed directly if the reader declares
-    the scheme as native, otherwise downloaded locally via cloudpathlib first.
+    the scheme as native, otherwise downloaded to a temporary local file first.
     """
-    if not isinstance(value, (str, pathlib.Path, CloudPath)):
+    if not isinstance(value, (str, pathlib.Path, UPath)):
         return nullcontext(value)
-    path = AnyPath(str(value))
+    path = UPath(str(value))
     suffix = path.suffix
     entry = _registry.get((type_, suffix))
     if entry is None or entry["reader"] is None:
         return nullcontext(value)
     reader = entry["reader"]
-    native_protocols = entry["native_protocols"]
-    if isinstance(path, CloudPath):
-        scheme = type(path).cloud_prefix.replace("://", "")
-        if scheme in native_protocols:
-            return reader(str(path))
-        return reader(pathlib.Path(os.fspath(path)))
-    return reader(pathlib.Path(value))
+    if path.protocol in _LOCAL_PROTOCOLS:
+        return reader(pathlib.Path(path.path))
+    if path.protocol in entry["native_protocols"]:
+        return reader(str(path))
+    return _temporary_copy_reader(reader, path)
+
+
+@contextmanager
+def _temporary_copy_reader(reader: Reader, path: UPath) -> Iterator[object]:
+    with tempfile.TemporaryDirectory() as directory:
+        local = pathlib.Path(directory) / path.name
+        local.write_bytes(path.read_bytes())
+        with reader(local) as value:
+            yield value
 
 
 def write(value, path):
     """Write value to path using the registered writer based on file extension."""
-    path = AnyPath(str(path))
+    path = UPath(str(path))
     suffix = path.suffix
     entry = _registry.get((type(value), suffix))
     if entry is None or entry["writer"] is None:

@@ -2,7 +2,10 @@
 
 import os
 
-from powerfunc.compute import ComputeSpecification
+from powerfunc.compute import UV_PROJECT_SETUP, ComputeSpecification
+
+# The checkout is a uv project; powerfunc_tests is not part of it, so put tests/ on the path.
+TEST_SETUP_COMMAND = f'{UV_PROJECT_SETUP} && export PYTHONPATH="$PWD/tests"'
 
 
 def get_project_and_bucket(gcp_credentials):
@@ -23,5 +26,9 @@ def get_project_and_bucket(gcp_credentials):
 def make_spec(provider):
     """Create a basic CPU compute spec for testing."""
     return ComputeSpecification(
-        cpu=1.0, memory=2048, timeout=300.0, image="python:3.12-slim", provider=provider
+        cpu=1.0,
+        memory=2048,
+        timeout=300.0,
+        image="python:3.12-slim",
+        provider=provider,
     )

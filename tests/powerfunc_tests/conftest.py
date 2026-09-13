@@ -1,8 +1,26 @@
 import json
 import os
+import pathlib
+import shutil
 import tempfile
 
 import pytest
+
+REPO_ROOT = pathlib.Path(__file__).parents[2]
+SECRET_DIRECTORY = ".powerfunc_test_secrets"
+"""A git-ignored directory at the repository root, for ``secret_directories`` tests."""
+
+
+@pytest.fixture
+def secret_directory():
+    """``SECRET_DIRECTORY`` holding ``token.txt`` with ``"hunter2"``, for the test."""
+    directory = REPO_ROOT / SECRET_DIRECTORY
+    directory.mkdir()
+    (directory / "token.txt").write_text("hunter2")
+    try:
+        yield SECRET_DIRECTORY
+    finally:
+        shutil.rmtree(directory)
 
 
 @pytest.fixture(scope="module")

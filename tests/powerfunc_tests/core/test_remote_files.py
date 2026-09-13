@@ -47,28 +47,25 @@ def csv_sum(reader: csv.reader) -> int:
     return sum(int(row[0]) for row in reader)
 
 
-HANGS_GCS = "hangs: pyarrow GCS filesystem requires credentials"
-
-
 LIBRARIES = [
-    pytest.param(pd_sum, "data.csv", {}, id="pandas-csv"),
-    pytest.param(pd_sum, "data.parquet", {"gs": HANGS_GCS}, id="pandas-parquet"),
-    pytest.param(pd_sum, "data.pandas.json", {}, id="pandas-json"),
-    pytest.param(pd_sum, "data.xlsx", {}, id="pandas-xlsx"),
-    pytest.param(pl_sum, "data.csv", {}, id="polars-csv"),
-    pytest.param(pl_sum, "data.parquet", {"gs": HANGS_GCS}, id="polars-parquet"),
-    pytest.param(pl_sum, "data.polars.json", {}, id="polars-json"),
-    pytest.param(pl_sum, "data.xlsx", {}, id="polars-xlsx"),
-    pytest.param(pa_sum, "data.csv", {}, id="pyarrow-csv"),
-    pytest.param(pa_sum, "data.parquet", {}, id="pyarrow-parquet"),
-    pytest.param(pa_sum, "data.feather", {}, id="pyarrow-feather"),
-    pytest.param(pa_sum, "data.arrow", {}, id="pyarrow-arrow"),
-    pytest.param(pa_dataset_sum, "data.csv", {}, id="pyarrow_dataset-csv"),
-    pytest.param(pa_dataset_sum, "data.parquet", {}, id="pyarrow_dataset-parquet"),
-    pytest.param(pa_dataset_sum, "data.arrow", {}, id="pyarrow_dataset-arrow"),
-    pytest.param(dd_sum, "data.csv", {}, id="dask-csv"),
-    pytest.param(dd_sum, "data.parquet", {}, id="dask-parquet"),
-    pytest.param(csv_sum, "data.csv", {}, id="csv_reader-csv"),
+    pytest.param(pd_sum, "data.csv", id="pandas-csv"),
+    pytest.param(pd_sum, "data.parquet", id="pandas-parquet"),
+    pytest.param(pd_sum, "data.pandas.json", id="pandas-json"),
+    pytest.param(pd_sum, "data.xlsx", id="pandas-xlsx"),
+    pytest.param(pl_sum, "data.csv", id="polars-csv"),
+    pytest.param(pl_sum, "data.parquet", id="polars-parquet"),
+    pytest.param(pl_sum, "data.polars.json", id="polars-json"),
+    pytest.param(pl_sum, "data.xlsx", id="polars-xlsx"),
+    pytest.param(pa_sum, "data.csv", id="pyarrow-csv"),
+    pytest.param(pa_sum, "data.parquet", id="pyarrow-parquet"),
+    pytest.param(pa_sum, "data.feather", id="pyarrow-feather"),
+    pytest.param(pa_sum, "data.arrow", id="pyarrow-arrow"),
+    pytest.param(pa_dataset_sum, "data.csv", id="pyarrow_dataset-csv"),
+    pytest.param(pa_dataset_sum, "data.parquet", id="pyarrow_dataset-parquet"),
+    pytest.param(pa_dataset_sum, "data.arrow", id="pyarrow_dataset-arrow"),
+    pytest.param(dd_sum, "data.csv", id="dask-csv"),
+    pytest.param(dd_sum, "data.parquet", id="dask-parquet"),
+    pytest.param(csv_sum, "data.csv", id="csv_reader-csv"),
 ]
 
 ENDPOINTS = [
@@ -78,8 +75,6 @@ ENDPOINTS = [
 
 
 @pytest.mark.parametrize("endpoint,base", ENDPOINTS)
-@pytest.mark.parametrize("func,filename,skips", LIBRARIES)
-def test_remote(func, filename, skips, endpoint, base):
-    if skips.get(endpoint):
-        pytest.skip(skips[endpoint])
+@pytest.mark.parametrize("func,filename", LIBRARIES)
+def test_remote(func, filename, endpoint, base):
     assert func(f"{base}/{filename}") == 6

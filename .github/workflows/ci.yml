@@ -47,6 +47,14 @@ jobs:
           GCP_BUCKET: gs://powerfunc-temporary-348293
           GCP_REGION: europe-west4
         run: uvx --with tox-uv tox run -e gcp
+      # Runs even when the tests fail or the run is cancelled, so a killed test
+      # cannot leave a job (and its GPU quota) running behind later runs.
+      - name: Delete leftover cloud jobs
+        if: always()
+        env:
+          GOOGLE_CLOUD_API_KEY: ${{ secrets.GOOGLE_CLOUD_API_KEY }}
+          GCP_REGION: europe-west4
+        run: uv run --no-project --with google-cloud-batch --with google-cloud-run python tests/powerfunc_tests/cleanup.py
 
   test-modal:
     runs-on: ubuntu-latest
