@@ -1,11 +1,11 @@
 import dataclasses
 from typing import TYPE_CHECKING, Annotated, Any, Optional, TypeAlias
 
-from pydantic import Field, GetCoreSchemaHandler
+from pydantic import Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
-from pydantic_core import core_schema
 
 from powerfunc.command_line import ExpectedException
+from powerfunc.polymorphic_pydantic_jsonargparse import polymorphic_pydantic_jsonargparse
 
 Timeout: TypeAlias = Annotated[float, Field(gt=0, description="Maximum job duration in seconds")]
 CpuCount: TypeAlias = Annotated[float, Field(gt=0, description="Number of vCPUs")]
@@ -40,14 +40,9 @@ if TYPE_CHECKING:
     from powerfunc.decorator import PowerFunc
 
 
+@polymorphic_pydantic_jsonargparse
 class Provider:
     """Base compute provider. Subclass and implement call()."""
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetCoreSchemaHandler
-    ) -> core_schema.CoreSchema:
-        return core_schema.is_instance_schema(cls)
 
     def call(self, function: "PowerFunc", arguments: dict, compute: "ComputeSpecification") -> Any:
         """Run ``function._run_without_parsing(**arguments)`` on the compute, returning its result.

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "powerfunc"
-version = "0.5.0"
+version = "0.6.0"
 description = "Make functions run however you like — CLI, pipeline, or remote compute"
 readme = "README.md"
 requires-python = ">=3.9"
