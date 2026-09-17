@@ -8,13 +8,18 @@ arguments to the container and runs ``setup_command`` followed by ``python -m
 powerfunc.providers.internal.generic_execute_entrypoint`` in one shell there, so the ``python``
 the setup command leaves on ``PATH`` runs the function. The image's working directory is
 learned from Modal by resolving the image (a build, if not cached) before the call.
+
+The container's stdout and stderr (the setup command's and the function's) are written to the
+local stdout and stderr as they arrive; Modal's own terminal display is not used, as it is one
+per process and cannot serve concurrent runs (see
+:mod:`powerfunc.providers.internal.modal_output`).
 """
 
 import pathlib
 import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import cloudpickle as pickle
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -43,13 +48,16 @@ try:
     import modal
     import modal_proto.api_pb2
 
+    from powerfunc.providers.internal.modal_output import forward_remote_output
+
     def working_directory(image: modal.Image, app_name: str) -> str:
         """The image's ``WORKDIR``, where Modal starts its containers, or Modal's default
         when it sets none. Learned by resolving the image (a build, if not cached) in an app
         run that registers a function on it but calls nothing, so starts no container."""
         app = modal.App(name=app_name)
         app.function(image=image, serialized=True, name="resolve_image")(lambda: None)
-        with modal.enable_output(), app.run():
+        forward_remote_output()
+        with app.run():
             metadata = image._get_metadata()  # pyright: ignore[reportPrivateUsage]
         if isinstance(metadata, modal_proto.api_pb2.ImageMetadata) and metadata.workdir:
             return metadata.workdir
@@ -115,8 +123,8 @@ try:
             def runner(
                 spec: dict[str, Any],
                 arguments: dict[str, bytes],
-                secrets: Optional[bytes],
-                codebase: Optional[str],
+                secrets: bytes | None,
+                codebase: str | None,
             ) -> bytes:
                 """Runs in the container, in the image's own Python, using only the standard
                 library: pickled by value, powerfunc need not be importable there. ``spec`` is
@@ -172,7 +180,8 @@ try:
                 serialized=True,
             )(runner)
             pickled = {name: pickle.dumps(value) for name, value in arguments.items()}
-            with modal.enable_output(), app.run():
+            forward_remote_output()
+            with app.run():
                 spec = job_spec(
                     function_id,
                     "output",

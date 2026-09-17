@@ -1,7 +1,7 @@
 import datetime
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 from upath import UPath
@@ -51,7 +51,7 @@ class GCPBatchProvider(GCPJobProvider):
     is cancelled and retried in the next available region.
     """
 
-    machine_type: Optional[str] = None
+    machine_type: str | None = None
     spot: bool = False
 
     def _build_job(

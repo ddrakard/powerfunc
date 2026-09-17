@@ -92,3 +92,13 @@ def gpu_name() -> str:
 
     # Return diagnostics so they appear in the assertion failure message.
     return "GPU_NOT_FOUND: " + " | ".join(diagnostics)
+
+
+@powerfunc
+def echo_remote(text: str) -> str:
+    """Print ``text`` to stdout and stderr where this runs, and return it."""
+    import sys
+
+    print(f"stdout: {text}", flush=True)
+    print(f"stderr: {text}", file=sys.stderr, flush=True)
+    return text

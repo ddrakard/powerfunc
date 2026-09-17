@@ -53,7 +53,7 @@ def read(value: object, type_: type) -> AbstractContextManager[object]:
     returned unchanged. Cloud URIs are streamed directly if the reader declares
     the scheme as native, otherwise downloaded to a temporary local file first.
     """
-    if not isinstance(value, (str, pathlib.Path, UPath)):
+    if not isinstance(value, str | pathlib.Path | UPath):
         return nullcontext(value)
     path = UPath(str(value))
     suffix = path.suffix

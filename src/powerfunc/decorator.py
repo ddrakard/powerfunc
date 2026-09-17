@@ -4,7 +4,7 @@ import pathlib
 import sys
 from collections.abc import Callable
 from contextlib import ExitStack
-from typing import Any, Optional, Protocol, TypeVar, Union, overload
+from typing import Any, Protocol, TypeVar, Union, overload
 
 from jsonargparse import ArgumentParser
 from upath import UPath
@@ -20,13 +20,13 @@ _EXTRA_PARAMETERS = [
         "compute",
         inspect.Parameter.KEYWORD_ONLY,
         default=None,
-        annotation=Optional[ComputeSpecification],
+        annotation=ComputeSpecification | None,
     ),
     inspect.Parameter(
         "output_path",
         inspect.Parameter.KEYWORD_ONLY,
         default=None,
-        annotation=Optional[str],
+        annotation=str | None,
     ),
 ]
 # The same option as the command line's ``--config``: a configuration file to
@@ -36,7 +36,7 @@ _CONFIGURATION_PARAMETER = inspect.Parameter(
     "config",
     inspect.Parameter.KEYWORD_ONLY,
     default=None,
-    annotation=Union[str, pathlib.Path, bool, None],
+    annotation=str | pathlib.Path | bool | None,
 )
 
 
@@ -63,9 +63,9 @@ class PowerFunc(Protocol[R]):
     def __call__(
         self,
         *args: Any,
-        compute: Optional[ComputeSpecification] = None,
-        output_path: Optional[str] = None,
-        config: Union[str, pathlib.Path, bool, None] = None,
+        compute: ComputeSpecification | None = None,
+        output_path: str | None = None,
+        config: str | pathlib.Path | bool | None = None,
         **kwargs: Any,
     ) -> R: ...
 
@@ -116,7 +116,7 @@ def powerfunc(function=None, *, cli=True):
                 # str must precede pathlib.Path and UPath: jsonargparse resolves Union
                 # subtypes in order and pathlib.Path accepts any string without error, so it
                 # would win and mangle "gs://bucket/file" into PosixPath("gs:/bucket/file").
-                annotation=Union[param.annotation, str, pathlib.Path, UPath]
+                annotation=Union[param.annotation, str, pathlib.Path, UPath]  # noqa: UP007
                 if is_readable(param.annotation)
                 else param.annotation
             )

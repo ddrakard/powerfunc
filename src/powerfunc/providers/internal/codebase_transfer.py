@@ -10,14 +10,14 @@ import subprocess
 import warnings
 import zipfile
 from collections.abc import Sequence
-from typing import Any, Optional
+from typing import Any
 
 from upath import UPath
 
 from powerfunc.decorator import PowerFunc
 
 
-def repository_root(function: PowerFunc) -> Optional[pathlib.Path]:
+def repository_root(function: PowerFunc) -> pathlib.Path | None:
     """The root of the git repository holding ``function``, if there is one; ``None`` (with
     a warning) means the function comes from an installed package and there is no codebase
     to send."""
@@ -51,7 +51,7 @@ def zip_codebase(repo_root: pathlib.Path, exclude_directories: Sequence[str] = (
     return buffer.getvalue()
 
 
-def codebase_of(function: PowerFunc) -> Optional[bytes]:
+def codebase_of(function: PowerFunc) -> bytes | None:
     """The zipped codebase to send so that ``function`` is importable on the compute."""
     root = repository_root(function)
     return None if root is None else zip_codebase(root)

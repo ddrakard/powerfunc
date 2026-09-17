@@ -24,7 +24,8 @@ Binding rules:
 """
 
 import types
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from snakemake.iocontainers import (
     InputFiles,
@@ -57,7 +58,7 @@ def _split_namedlist(namedlist: Namedlist) -> tuple[list[Any], dict[str, Any]]:
 
 def _unpack_path_or_paths(value: str | Namedlist) -> str | list[str]:
     """Normalise a Snakemake input/output entry to a path string (or list of them)."""
-    if isinstance(value, (list, tuple, Namedlist)):
+    if isinstance(value, list | tuple | Namedlist):
         return [str(item) for item in value]
     return str(value)
 

@@ -8,7 +8,6 @@ import io
 import os
 import pathlib
 import zipfile
-from typing import Optional
 
 from cryptography.fernet import Fernet
 
@@ -18,8 +17,8 @@ KEY_VARIABLE = "POWERFUNC_SECRET_DIRECTORIES_KEY"
 
 
 def encrypt_secret_directories(
-    root: Optional[pathlib.Path], relative_paths: list[str]
-) -> Optional[tuple[bytes, str]]:
+    root: pathlib.Path | None, relative_paths: list[str]
+) -> tuple[bytes, str] | None:
     """The directories at ``relative_paths`` under ``root``, zipped and encrypted, with the
     key to decrypt them; ``None`` if there are none to send."""
     if not relative_paths:

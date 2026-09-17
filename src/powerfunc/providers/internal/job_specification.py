@@ -8,7 +8,7 @@ the stages run on the compute are :mod:`powerfunc.providers.internal.generic_set
 
 import json
 import traceback
-from typing import Any, Optional
+from typing import Any
 
 from upath import UPath
 
@@ -42,8 +42,8 @@ def job_spec(
     output_path: str,
     argument_paths: dict[str, str],
     setup_command: str = "",
-    codebase_path: Optional[str] = None,
-    secret_directories_path: Optional[str] = None,
+    codebase_path: str | None = None,
+    secret_directories_path: str | None = None,
 ) -> dict[str, Any]:
     """The JSON-able spec the compute-side stages read; ``function`` is ``module:qualname``,
     ``secret_directories_path`` holds the encrypted zip of

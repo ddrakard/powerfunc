@@ -3,7 +3,7 @@ job's status events show a region is out of capacity, and the job's Cloud Loggin
 
 import time
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from powerfunc.command_line import ExpectedException
 
@@ -32,7 +32,7 @@ _EXHAUSTION_CODES = (
 def candidate_regions(
     project: str,
     accelerator_name: str,
-    machine_type: Optional[str],
+    machine_type: str | None,
 ) -> list[str]:
     """Query GCP for regions where both the accelerator and machine type exist.
 

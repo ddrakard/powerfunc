@@ -12,13 +12,20 @@ puts ``tests/`` on the path, since ``powerfunc_tests`` is not part of the instal
 
 import os
 import pathlib
+from concurrent.futures import ThreadPoolExecutor
 
 from upath import UPath
 
 from powerfunc.compute import ComputeSpecification
 from powerfunc.providers.modal import ModalProvider
 from powerfunc_tests.gcp.gcp_shared import TEST_SETUP_COMMAND
-from powerfunc_tests.remote_jobs import codebase_file_text, csv_sum, remote_add, remote_concat
+from powerfunc_tests.remote_jobs import (
+    codebase_file_text,
+    csv_sum,
+    echo_remote,
+    remote_add,
+    remote_concat,
+)
 
 DATA_DIR = pathlib.Path(__file__).parents[1] / "data"
 
@@ -66,3 +73,21 @@ def test_modal_sends_secret_directories(secret_directory):
     Modal, though not in the image."""
     spec = _spec(_provider(secret_directories=[secret_directory]))
     assert codebase_file_text(f"{secret_directory}/token.txt", compute=spec) == "hunter2"
+
+
+def test_modal_forwards_remote_output(capfd):
+    """The container's stdout and stderr reach the local ones, on their own streams, and
+    Modal's status display does not."""
+    assert echo_remote("hello", compute=_spec()) == "hello"
+    out, err = capfd.readouterr()
+    assert "stdout: hello" in out
+    assert "stderr: hello" in err
+    assert "Created objects" not in out + err
+
+
+def test_modal_concurrent_runs():
+    """Several runs started at once from one process (as parallel pipeline stages are) all
+    complete: Modal's shared display is not used, so they cannot corrupt it."""
+    with ThreadPoolExecutor(3) as pool:
+        results = list(pool.map(lambda n: remote_add(n, n, compute=_spec()), [1, 2, 3]))
+    assert results == [2, 4, 6]

@@ -1,5 +1,5 @@
 import dataclasses
-from typing import TYPE_CHECKING, Annotated, Any, Optional, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, TypeAlias
 
 from pydantic import Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -12,7 +12,7 @@ CpuCount: TypeAlias = Annotated[float, Field(gt=0, description="Number of vCPUs"
 MemorySize: TypeAlias = Annotated[int, Field(gt=0, description="RAM in MB")]
 DockerImageUri: TypeAlias = Annotated[str, Field(description="Container image URI")]
 GpuModel: TypeAlias = Annotated[
-    Optional[str], Field(description="GPU model name, as the provider names it (e.g. 'l4', 'a100')")
+    str | None, Field(description="GPU model name, as the provider names it (e.g. 'l4', 'a100')")
 ]
 
 UV_PROJECT_SETUP = "uv sync --locked && . .venv/bin/activate"
