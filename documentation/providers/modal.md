@@ -79,6 +79,19 @@ The command runs verbatim: anything it needs, such as `uv` itself, must be in th
 
 `ModalProvider(environment_variables={"NAME": "value"})` sets environment variables of the running function. For example, to read `gs://` paths with a service-account key rather than ADC, give the key JSON as [fsspec configuration](https://filesystem-spec.readthedocs.io/en/latest/features.html#configuration): `environment_variables={"FSSPEC_GCS_TOKEN": key_json}`. `secret_directories=["config/"]` sends whole directories (relative to the repository root, git-ignored or not) encrypted, as described in the [readme](../readme.md#cloud-providers-and-remote-execution), rather than in the image.
 
+`ModalProvider(detach=True)` runs the Modal app detached: it keeps running when the client that started it disconnects, so a long job is no longer torn down with the local process that launched it. The call still blocks and still returns its result to the client waiting on it, so this keeps the work alive, it does not let a new process pick it up: if the caller is gone, follow and stop the run from the [dashboard](https://modal.com/apps) or with `modal app logs` and `modal app stop`.
+
+```yaml
+compute:
+  class_path: powerfunc.providers.modal.ModalCpuSmall
+  init_args:
+    timeout: 86400
+    provider:
+      class_path: powerfunc.providers.modal.ModalProvider
+      init_args:
+        detach: true
+```
+
 ## Presets
 
 | Class | CPU | Memory | GPU |

@@ -50,14 +50,14 @@ try:
 
     from powerfunc.providers.internal.modal_output import forward_remote_output
 
-    def working_directory(image: modal.Image, app_name: str) -> str:
+    def working_directory(image: modal.Image, app_name: str, detach: bool = False) -> str:
         """The image's ``WORKDIR``, where Modal starts its containers, or Modal's default
         when it sets none. Learned by resolving the image (a build, if not cached) in an app
         run that registers a function on it but calls nothing, so starts no container."""
         app = modal.App(name=app_name)
         app.function(image=image, serialized=True, name="resolve_image")(lambda: None)
         forward_remote_output()
-        with app.run():
+        with app.run(detach=detach):
             metadata = image._get_metadata()  # pyright: ignore[reportPrivateUsage]
         if isinstance(metadata, modal_proto.api_pb2.ImageMetadata) and metadata.workdir:
             return metadata.workdir
@@ -94,11 +94,19 @@ try:
         ``environment_variables`` are those of the running function; ``secret_directories``
         (relative to the codebase's git root) are sent encrypted rather than in the image: for
         credentials and other files git ignores.
+
+        ``detach`` makes the app detached rather than ephemeral, so Modal keeps it running
+        when the client that started it disconnects, instead of tearing the container down
+        with the local process. The call itself still blocks and still returns its result to
+        the waiting client, so this buys a job that outlives the caller, not one the caller
+        can come back to: a client that has gone away leaves the run to be followed and
+        stopped from the dashboard (``modal app logs``, ``modal app stop``).
         """
 
         setup_command: str = ""
         environment_variables: dict[str, str] = field(default_factory=dict)
         secret_directories: list[str] = field(default_factory=list)
+        detach: bool = False
 
         def _base_image(self, compute: ComputeSpecification) -> modal.Image:
             """``compute.image`` from a registry, or Modal's Debian slim."""
@@ -115,7 +123,7 @@ try:
                 environment[KEY_VARIABLE] = secrets[1]
             app_name = f"powerfunc-{function.__name__}"
             image = self._base_image(compute)
-            directory = working_directory(image, app_name)
+            directory = working_directory(image, app_name, self.detach)
             if codebase is not None:
                 image = add_codebase(image, codebase, directory, self.secret_directories)
             app = modal.App(name=app_name)
@@ -181,7 +189,7 @@ try:
             )(runner)
             pickled = {name: pickle.dumps(value) for name, value in arguments.items()}
             forward_remote_output()
-            with app.run():
+            with app.run(detach=self.detach):
                 spec = job_spec(
                     function_id,
                     "output",
