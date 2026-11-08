@@ -15,9 +15,10 @@ per process and cannot serve concurrent runs (see
 :mod:`powerfunc.providers.internal.modal_output`).
 """
 
+import contextlib
 import pathlib
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -50,6 +51,29 @@ try:
 
     from powerfunc.providers.internal.modal_output import forward_remote_output
 
+    @contextlib.contextmanager
+    def _run(app: modal.App, detach: bool) -> Iterator[None]:
+        """``app.run(detach=detach)``, but an exception from the block always reaches the caller.
+
+        Modal's runner catches a ``KeyboardInterrupt`` (Ctrl-C) raised in the block, and when
+        detached also a ``ConnectionError``, then leaves the ``with`` block normally, so the
+        caller would carry on without the block's result. The exception is recorded on its
+        way out of the block and raised again once Modal has finished with it."""
+        raised: BaseException | None = None
+        with app.run(detach=detach):
+            try:
+                yield
+            except BaseException as error:
+                raised = error
+                raise
+        if raised is not None:
+            if detach and hasattr(raised, "add_note"):
+                raised.add_note(
+                    "The detached Modal app keeps running: see `modal app list`, then"
+                    " `modal app logs <id>` or `modal app stop <id>`."
+                )
+            raise raised
+
     def working_directory(image: modal.Image, app_name: str, detach: bool = False) -> str:
         """The image's ``WORKDIR``, where Modal starts its containers, or Modal's default
         when it sets none. Learned by resolving the image (a build, if not cached) in an app
@@ -57,7 +81,7 @@ try:
         app = modal.App(name=app_name)
         app.function(image=image, serialized=True, name="resolve_image")(lambda: None)
         forward_remote_output()
-        with app.run(detach=detach):
+        with _run(app, detach):
             metadata = image._get_metadata()  # pyright: ignore[reportPrivateUsage]
         if isinstance(metadata, modal_proto.api_pb2.ImageMetadata) and metadata.workdir:
             return metadata.workdir
@@ -189,7 +213,7 @@ try:
             )(runner)
             pickled = {name: pickle.dumps(value) for name, value in arguments.items()}
             forward_remote_output()
-            with app.run(detach=self.detach):
+            with _run(app, self.detach):
                 spec = job_spec(
                     function_id,
                     "output",

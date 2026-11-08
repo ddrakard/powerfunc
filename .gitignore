@@ -19,3 +19,6 @@ venv/
 
 # Tests
 .powerfunc_test_secrets/
+
+# Claude Code personal settings
+.claude/settings.local.json

@@ -34,8 +34,18 @@ jobs:
       - run: uvx --with tox-uv tox run -e core
 
   test-gcp:
+    # Live cloud tests need the repository's secrets, which GitHub does not give to
+    # pull requests from forks; skip them there rather than fail. To run them on a
+    # fork's PR, push its commit to a branch here after reviewing it.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Runs share one GCP project, and each ends by deleting every running pf-* job in
+    # it, so overlapping runs (e.g. a push to main and its release tag) would delete
+    # each other's jobs. Queue them across all branches and tags instead.
+    concurrency:
+      group: live-gcp
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -57,8 +67,16 @@ jobs:
         run: uv run --no-project --with google-cloud-batch --with google-cloud-run python tests/powerfunc_tests/cleanup.py
 
   test-modal:
+    # Live cloud tests need the repository's secrets, which GitHub does not give to
+    # pull requests from forks; skip them there rather than fail. To run them on a
+    # fork's PR, push its commit to a branch here after reviewing it.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Shares the Modal account and the GCP bucket across runs; queue like test-gcp.
+    concurrency:
+      group: live-modal
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6

@@ -3,10 +3,10 @@ try:
 
     from powerfunc.conversions import as_context, register_converters
 
-    _NATIVE_PROTOCOLS = {"gs", "s3", "az", "https"}
-    # read_parquet uses polars' own object store, which needs credentials even
-    # for public buckets, so only https is native.
-    _PARQUET_NATIVE_PROTOCOLS = {"https"}
+    # Polars reads cloud URIs with its own object store, which needs credentials
+    # even for public buckets (for read_parquet always, for read_csv since polars
+    # 2.0), so only https is native; other schemes are downloaded first.
+    _NATIVE_PROTOCOLS = {"https"}
 
     register_converters(
         pl.DataFrame,
@@ -20,7 +20,7 @@ try:
         ".parquet",
         reader=as_context(pl.read_parquet),
         writer=lambda df, p: df.write_parquet(p),
-        native_protocols=_PARQUET_NATIVE_PROTOCOLS,
+        native_protocols=_NATIVE_PROTOCOLS,
     )
     register_converters(
         pl.DataFrame,

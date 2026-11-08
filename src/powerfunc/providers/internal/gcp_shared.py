@@ -8,6 +8,7 @@ import collections.abc
 import importlib.metadata
 import json
 import random
+import sys
 import time
 import urllib.parse
 from dataclasses import dataclass, field
@@ -16,6 +17,7 @@ from typing import Any
 import cloudpickle as pickle
 from upath import UPath
 
+from powerfunc.command_line import ExpectedException
 from powerfunc.compute import ComputeSpecification, Provider
 from powerfunc.decorator import PowerFunc
 from powerfunc.providers.internal.codebase_transfer import repository_root, zip_codebase
@@ -40,7 +42,8 @@ def bootstrap_command(job_spec_path: UPath, error_gcs_path: str = "") -> str:
     1. This bootstrap needs nothing from the image: it gets `uv
        <https://docs.astral.sh/uv/>`_ via a fallback chain (existing → curl → wget →
        pip → apt-get install curl) and uses ``uv run`` — ephemeral environment with
-       powerfunc, Python downloaded if needed — to start the generic setup entrypoint.
+       powerfunc, on the caller's Python version (downloaded if needed) — to start the
+       generic setup entrypoint.
     2. setup unpacks the codebase and runs the job's ``setup_command`` in it.
     3. setup then runs the generic execute entrypoint with the ``python`` that command left
        on ``PATH`` (the image's own if there was no command), which imports and runs the
@@ -53,10 +56,14 @@ def bootstrap_command(job_spec_path: UPath, error_gcs_path: str = "") -> str:
     (including the install step) is uploaded to GCS via ``gsutil``, ``curl``,
     or Python ``urllib``.
     """
-    # The setup stage runs the same powerfunc version as the caller.
+    # The setup stage runs the same powerfunc version as the caller, on the same Python
+    # version: cloudpickle needs matching versions, and otherwise uv picks its newest
+    # Python, for which dependencies may have no wheels (and images no compiler).
     powerfunc_version = importlib.metadata.version("powerfunc")
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
     run_cmd = (
-        f'uv run --with "powerfunc=={powerfunc_version}" --with "pydantic>=2" '
+        f'uv run --python {python_version} --with "powerfunc=={powerfunc_version}" '
+        '--with "pydantic>=2" '
         f"python -m {SETUP_ENTRYPOINT} {job_spec_path}"
     )
     main_cmd = GET_UV + " && " + run_cmd
@@ -121,6 +128,20 @@ def generate_names(
     return {name: f"{prefix}_{name}" for name in names}
 
 
+def job_name(output_name: str, user_identifier: str = "") -> str:
+    """The GCP job name for the artifact named ``output_name``: ``pf-`` and that name with
+    hyphens for underscores. Raises rather than truncating a name over the 63 characters
+    GCP allows, as truncation would cut the timestamp and random part that keep it unique."""
+    name = "pf-" + output_name.replace("_", "-")
+    if len(name) > MAX_JOB_NAME_LENGTH:
+        raise ExpectedException(
+            f"Generated job name is too long ({len(name)} characters, max "
+            f"{MAX_JOB_NAME_LENGTH}). Shorten the provider's user_identifier "
+            f"(currently {user_identifier!r}, {len(user_identifier)} characters)."
+        )
+    return name
+
+
 @dataclass
 class GCPJobProvider(Provider):
     """Base of the GCP providers: puts the job's artifacts in ``temporary_bucket_path`` and
@@ -171,6 +192,7 @@ class GCPJobProvider(Provider):
         if secret_directories is not None:
             artifact_names = ["_secret_directories", *artifact_names]
         paths = self._generate_paths(artifact_names)
+        name = job_name(paths["_output"].name, self.user_identifier)
 
         try:
             if codebase is not None:
@@ -192,8 +214,7 @@ class GCPJobProvider(Provider):
             )
             paths["_job_spec"].write_bytes(json.dumps(spec).encode())
 
-            job_name = ("pf-" + paths["_output"].name.replace("_", "-"))[:MAX_JOB_NAME_LENGTH]
-            self._submit_job(job_name, compute, paths["_job_spec"], environment)
+            self._submit_job(name, compute, paths["_job_spec"], environment)
 
             result = pickle.loads(paths["_output"].read_bytes())
         finally:
