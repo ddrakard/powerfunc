@@ -192,7 +192,7 @@ class GCPJobProvider(Provider):
         if secret_directories is not None:
             artifact_names = ["_secret_directories", *artifact_names]
         paths = self._generate_paths(artifact_names)
-        name = job_name(paths["_output"].name, self.user_identifier)
+        job_id = job_name(paths["_output"].name, self.user_identifier)
 
         try:
             if codebase is not None:
@@ -214,7 +214,7 @@ class GCPJobProvider(Provider):
             )
             paths["_job_spec"].write_bytes(json.dumps(spec).encode())
 
-            self._submit_job(name, compute, paths["_job_spec"], environment)
+            self._submit_job(job_id, compute, paths["_job_spec"], environment)
 
             result = pickle.loads(paths["_output"].read_bytes())
         finally:
